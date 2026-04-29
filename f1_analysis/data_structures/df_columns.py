@@ -23,7 +23,7 @@ class CarDataColumns(DataFrameColumnsBase):
     def schema(cls):
         return {
             cls.BRAKE: pl.Int8,
-            cls.DATE: pl.Datetime,
+            cls.DATE: pl.Datetime(time_unit="us", time_zone="UTC"),
             cls.DRIVER_NUMBER: pl.UInt8,
             cls.DRS: pl.UInt8,
             cls.MEETING_KEY: pl.Int32,

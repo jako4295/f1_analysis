@@ -136,8 +136,9 @@ class OpenF1API:
         }
         car_req = self.request("car_data", parameters)
         car_json = car_req.json()
+        _df = pl.DataFrame(car_json)
 
-        return pl.DataFrame(car_json, schema=CarDataColumns.schema())
+        return pl.DataFrame(_df, schema=CarDataColumns.schema())
 
 
 def _fmt_params(parameters: Dict[str, str] | Dict[str, List[str]]) -> str:

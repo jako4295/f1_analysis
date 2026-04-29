@@ -8,7 +8,9 @@ def main(year: int) -> None:
     for session_key in session_keys:
         drivers = f1_api.get_session_drivers(session_key)
         for driver in drivers:
-            car_data = f1_api.get_session_car_data(session_key, driver.number)
+            car_data = f1_api.get_session_car_data(  # noqa: F841
+                session_key, driver.number
+            )
 
             # TODO: Either analyze car data per driver or per session
             break

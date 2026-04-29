@@ -1,0 +1,35 @@
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[project]
+name = "f1_analysis"
+version = "0.0.1"
+description = "Analysis of OpenF1 API data."
+authors = [{ name = "Jakob Olsen" }]
+license = { file = "LICENSE" }
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = ["pip", "pytest", "python-dotenv", "ruff", "requests (>=2.33.1,<3.0.0)", "polars (>=1.40.1,<2.0.0)"]
+requires-python = "~=3.13.0"
+
+
+[tool.ruff]
+line-length = 99
+src = ["f1_analysis"]
+include = ["pyproject.toml", "f1_analysis/**/*.py"]
+
+[tool.ruff.lint]
+extend-select = ["I"] # Add import sorting
+
+[tool.ruff.lint.isort]
+known-first-party = ["f1_analysis"]
+force-sort-within-sections = true
+
+[dependency-groups]
+dev = [
+    "mypy (>=1.20.2,<2.0.0)"
+]

@@ -2,8 +2,12 @@ import polars as pl
 import requests
 
 from f1_analysis.data_structures.api_datacls import Driver
-from f1_analysis.data_structures.df_columns import CarDataColumns, CarDataDF
-from f1_analysis.data_structures.enums import OpenF1Versions
+from f1_analysis.data_structures.df_columns import (
+    CarDataColumns,
+    CarDataDF,
+    LapDataColumns,
+    LapDataDF,
+)
 
 
 class OpenF1API:
@@ -25,7 +29,7 @@ class OpenF1API:
         endpoint: str,
         parameters: dict[str, str] | dict[str, list[str]],
         method: str = "GET",
-        version: OpenF1Versions = OpenF1Versions.V1,
+        version: str = "v1",
     ) -> requests.Response:
         """Request data from OpenF1.
 
@@ -41,8 +45,8 @@ class OpenF1API:
             `key=[arg1,arg2,...`.
         method : str, optional
             Method for requesting data through the requests library, by default "GET"
-        version : OpenF1Versions, optional
-            Version of the API, by default OpenF1Versions.V1
+        version : str, optional
+            Version of the API, by default "v1"
 
         Returns
         -------
@@ -54,7 +58,7 @@ class OpenF1API:
         _ep = endpoint if not endpoint.endswith("/") else endpoint[:1]
         params = _fmt_params(parameters)
 
-        url = f"{_url}/{version.value}/{_ep}{params}"
+        url = f"{_url}/{version}/{_ep}{params}"
         res = self.session.request(method, url=url)
 
         res.raise_for_status()
@@ -139,7 +143,44 @@ class OpenF1API:
         car_json = car_req.json()
         _df = pl.DataFrame(car_json)
 
-        return pl.DataFrame(_df, schema=CarDataColumns.schema())
+        return pl.DataFrame(
+            _df[CarDataColumns.columns()],
+            schema_overrides=CarDataColumns.schema(),
+        )
+
+    def get_lap_data(
+        self, session_key: int, driver_number: int, is_pit_out_lap: bool = False
+    ) -> LapDataDF:
+        """Laps for a given driver at a given session.
+
+        Parameters
+        ----------
+        session_key : int
+            Key for the session.
+        driver_number : int
+            Number of the driver to obtain data from
+        is_pit_out_lap : bool, optional
+            If True the out laps will be included, otherwise excluded. Default False.
+
+        Returns
+        -------
+        LapDataDF
+            pl.DataFrame with requested car data. See `LapDataColumns` for columns and
+            schema of the dataframe.
+        """
+        parameters = {
+            "session_key": f"{session_key}",
+            "driver_number": f"{driver_number}",
+            "is_pit_out_lap": f"{is_pit_out_lap}".lower(),
+        }
+        lap_req = self.request("laps", parameters)
+        lap_json = lap_req.json()
+        _df = pl.DataFrame(lap_json)
+
+        return pl.DataFrame(
+            _df[LapDataColumns.columns()],
+            schema_overrides=LapDataColumns.schema(),
+        )
 
 
 def _fmt_params(parameters: dict[str, str] | dict[str, list[str]]) -> str:

@@ -8,13 +8,12 @@ Analysis of OpenF1 API data.
 
 ## Installation
 
-To install the package first create a virtual environment (`python3 -m venv .venv`) and install it as follows:
+To install the package, first make sure you have [uv installed](https://docs.astral.sh/uv/getting-started/installation/#installation-methods) (you can always check this using `uv --version`).
 
 ```bash
-pip install poetry
-poetry install
+uv sync
 ```
 
 ## Usage
 
-To run module code (at `f1_analysis/__main__.py`) use `python -m f1_analysis`.
+To run module code (at `f1_analysis/__main__.py`) use `uv run python -m f1_analysis`.

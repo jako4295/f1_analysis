@@ -1,13 +1,15 @@
-from typing import TypeAlias
+from typing import Any
 
 import polars as pl
 
 from f1_analysis.data_structures._df_column_base import DataFrameColumnsBase
 
-CarDataDF: TypeAlias = pl.DataFrame
+type CarDataDF = pl.DataFrame
 
 
 class CarDataColumns(DataFrameColumnsBase):
+    """DataFrame columns for data containing car data."""
+
     BRAKE = "brake"
     DATE = "date"
     DRIVER_NUMBER = "driver_number"
@@ -20,7 +22,14 @@ class CarDataColumns(DataFrameColumnsBase):
     THROTTLE = "throttle"
 
     @classmethod
-    def schema(cls):
+    def schema(cls) -> dict[str, Any]:
+        """Validate DataFrame with car data with this attribute.
+
+        Returns
+        -------
+        dict[str, Any]
+            Schema for CarDataColumns
+        """
         return {
             cls.BRAKE: pl.Int8,
             cls.DATE: pl.Datetime(time_unit="us", time_zone="UTC"),

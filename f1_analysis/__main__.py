@@ -2,6 +2,17 @@ from f1_analysis.data_handler.openf1_api import OpenF1API
 
 
 def main(year: int) -> None:
+    """Run main module of ``f1_analysis``.
+
+    Parameters
+    ----------
+    year : int
+        Year to analyze
+
+    Returns
+    -------
+    None
+    """
     f1_api = OpenF1API()
     session_keys = f1_api.get_session_keys(year)
 

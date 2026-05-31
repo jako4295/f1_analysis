@@ -1,6 +1,6 @@
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "f1_analysis"
@@ -13,23 +13,57 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
 ]
-dependencies = ["pip", "pytest", "python-dotenv", "ruff", "requests (>=2.33.1,<3.0.0)", "polars (>=1.40.1,<2.0.0)", "types-requests (>=2.33.0.20260408,<3.0.0.0)"]
-requires-python = "~=3.13.0"
+dependencies = [
+    "pip",
+    "python-dotenv",
+    "requests (>=2.33.1,<3.0.0)",
+    "polars (>=1.40.1,<2.0.0)",
+    "types-requests (>=2.33.0.20260408,<3.0.0.0)",
+]
+requires-python = ">=3.13"
 
+[dependency-groups]
+dev = ["ruff", "mypy (>=1.20.2,<2.0.0)"]
+
+[tool.mypy]
+python_version = "3.13"
+files = ["f1_analysis"]
+ignore_missing_imports = true
+incremental = false
+warn_unused_configs = true
 
 [tool.ruff]
-line-length = 99
-src = ["f1_analysis"]
-include = ["pyproject.toml", "f1_analysis/**/*.py"]
+line-length = 88 # match Black default, keeps lint messages consistent
 
 [tool.ruff.lint]
-extend-select = ["I"] # Add import sorting
+select = [
+    "E",   # pycodestyle errors (PEP 8)
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes (unused imports/vars, undefined names — F401 is in here)
+    "I",   # isort (import sorting)
+    "B",   # flake8-bugbear (mutable default args, unused loop vars, etc.)
+    "UP",  # pyupgrade (modernize syntax: Optional → | None, List → list)
+    "SIM", # flake8-simplify (verbose patterns)
+    "RUF", # ruff-specific rules
+    "N",   # pep8-naming (snake_case / PascalCase enforcement)
+    "C4",  # flake8-comprehensions (better list/dict/set comprehensions)
+    "PTH", # flake8-use-pathlib (prefer pathlib over os.path)
+    "RET", # flake8-return (clean return statements)
+    "D",   # pydocstyle (all docstring rules)
+] # F: pyflakes (unused imports, etc.), I: import sorting
+extend-safe-fixes = ["F401"]
+ignore = [
+    "D100", # Missing docstring in public module
+    "D104", # Missing docstring in public package
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"] # optional: common to allow re-export imports
 
 [tool.ruff.lint.isort]
 known-first-party = ["f1_analysis"]
+combine-as-imports = true
 force-sort-within-sections = true
-
-[dependency-groups]
-dev = [
-    "mypy (>=1.20.2,<2.0.0)"
-]

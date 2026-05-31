@@ -1,5 +1,3 @@
-from typing import Dict, List
-
 import polars as pl
 import requests
 
@@ -9,8 +7,7 @@ from f1_analysis.data_structures.enums import OpenF1Versions
 
 
 class OpenF1API:
-    """
-    API for requesting data from OpenF1 API
+    """API for requesting data from OpenF1 API.
 
     Parameters
     ----------
@@ -26,20 +23,22 @@ class OpenF1API:
     def request(
         self,
         endpoint: str,
-        parameters: Dict[str, str] | Dict[str, List[str]],
+        parameters: dict[str, str] | dict[str, list[str]],
         method: str = "GET",
         version: OpenF1Versions = OpenF1Versions.V1,
     ) -> requests.Response:
-        """Request data from OpenF1
+        """Request data from OpenF1.
 
         Parameters
         ----------
         endpoint : str
-            Endpoints from https://openf1.org/docs/#api-endpoints. For example `sessions`
+            Endpoints from https://openf1.org/docs/#api-endpoints. For example
+            `sessions`
         parameters : Dict[str, str] | Dict[str, List[str]]
-            Parameters for the endpoint. By default it will set key=val in dict but if the value
-            starts with <, >, <=, >=, then this will be the matching instead. If you want to provide
-            the same argument multiple times, then use `key=[arg1,arg2,...`.
+            Parameters for the endpoint. By default it will set key=val in dict but if
+            the value starts with <, >, <=, >=, then this will be the matching instead.
+            If you want to provide the same argument multiple times, then use
+            `key=[arg1,arg2,...`.
         method : str, optional
             Method for requesting data through the requests library, by default "GET"
         version : OpenF1Versions, optional
@@ -64,8 +63,8 @@ class OpenF1API:
 
     def get_session_keys(
         self, year: int, session_type: str = "Qualifying"
-    ) -> List[int]:
-        """Method for getting all sessions in a year (of a given session type).
+    ) -> list[int]:
+        """Attribute for getting all sessions in a year (of a given session type).
 
         Parameters
         ----------
@@ -93,8 +92,8 @@ class OpenF1API:
 
         return session_keys
 
-    def get_session_drivers(self, session_key: int) -> List[Driver]:
-        """Get the drivers that are in the provided session
+    def get_session_drivers(self, session_key: int) -> list[Driver]:
+        """Get the drivers that are in the provided session.
 
         Parameters
         ----------
@@ -113,9 +112,11 @@ class OpenF1API:
         return Driver.from_json_response(drivers_json)
 
     def get_session_car_data(self, session_key: int, driver_number: int) -> CarDataDF:
-        """Car data per session and driver. It is ambiguous to import for all drivers and the call
-        will fail - therefore `driver_numbe` must be specified. Use `self.get_session_drivers` to
-        see the available drivers for a given session.
+        """Car data per session and driver.
+
+        It is ambiguous to import for all drivers and the call will fail - therefore
+        `driver_number` must be specified. Use `self.get_session_drivers` to see the
+        available drivers for a given session.
 
         Parameters
         ----------
@@ -127,8 +128,8 @@ class OpenF1API:
         Returns
         -------
         CarDataDF
-            pl.DataFrame with requested car data. See `CarDataColumns` for columns and schema of the
-            dataframe.
+            pl.DataFrame with requested car data. See `CarDataColumns` for columns and
+            schema of the dataframe.
         """
         parameters = {
             "session_key": f"{session_key}",
@@ -141,7 +142,7 @@ class OpenF1API:
         return pl.DataFrame(_df, schema=CarDataColumns.schema())
 
 
-def _fmt_params(parameters: Dict[str, str] | Dict[str, List[str]]) -> str:
+def _fmt_params(parameters: dict[str, str] | dict[str, list[str]]) -> str:
     params = "?"
     for key, val in parameters.items():
         if isinstance(val, list):

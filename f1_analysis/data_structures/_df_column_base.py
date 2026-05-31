@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TypeAlias
 
 import polars as pl
 
-Schema: TypeAlias = dict[str, pl.DataType]
+type Schema = dict[str, pl.DataType]
 
 
 class DataFrameColumnsBase(ABC):

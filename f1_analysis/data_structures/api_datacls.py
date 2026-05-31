@@ -1,18 +1,20 @@
 from dataclasses import dataclass
-from typing import Dict, List, Self
+from typing import Self
 
 
 @dataclass
 class Driver:
+    """Dataclass for import of driver data."""
+
     full_name: str
     team: str
     number: int
 
     @classmethod
     def from_json_response(
-        cls, json_response: List[Dict[str, str | int]]
-    ) -> List[Self]:
-        """Load drivers from a json api response (using the drivers endpoint)
+        cls, json_response: list[dict[str, str | int]]
+    ) -> list[Self]:
+        """Load drivers from a json api response (using the drivers endpoint).
 
         Parameters
         ----------

@@ -1,12 +1,15 @@
 import polars as pl
 import requests
 
+from f1_analysis.data_structures._df_column_base import DataFrameColumnsBase
 from f1_analysis.data_structures.api_datacls import Driver
 from f1_analysis.data_structures.df_columns import (
     CarDataColumns,
-    CarDataDF,
+    CarDF,
     LapDataColumns,
-    LapDataDF,
+    LapDF,
+    SessionDataColumns,
+    SessionDF,
 )
 
 
@@ -65,9 +68,9 @@ class OpenF1API:
 
         return res
 
-    def get_session_keys(
+    def get_session_data(
         self, year: int, session_type: str = "Qualifying"
-    ) -> list[int]:
+    ) -> SessionDF:
         """Attribute for getting all sessions in a year (of a given session type).
 
         Parameters
@@ -79,22 +82,12 @@ class OpenF1API:
 
         Returns
         -------
-        List[int]
-            List of session keys.
+        SessionDF
+            Session data info
         """
         parameters = {"year": f"{year}", "session_type": session_type}
-        sessions_req = self.request("sessions", parameters)
-        sessions_json = sessions_req.json()
-
-        session_keys = []
-        for session in sessions_json:
-            session_key = session.get("session_key", None)
-            if session_key is None:
-                continue
-
-            session_keys.append(session_key)
-
-        return session_keys
+        sessions_res = self.request("sessions", parameters)
+        return _response2df(sessions_res, SessionDataColumns)
 
     def get_session_drivers(self, session_key: int) -> list[Driver]:
         """Get the drivers that are in the provided session.
@@ -115,7 +108,7 @@ class OpenF1API:
 
         return Driver.from_json_response(drivers_json)
 
-    def get_session_car_data(self, session_key: int, driver_number: int) -> CarDataDF:
+    def get_session_car_data(self, session_key: int, driver_number: int) -> CarDF:
         """Car data per session and driver.
 
         It is ambiguous to import for all drivers and the call will fail - therefore
@@ -131,7 +124,7 @@ class OpenF1API:
 
         Returns
         -------
-        CarDataDF
+        CarDF
             pl.DataFrame with requested car data. See `CarDataColumns` for columns and
             schema of the dataframe.
         """
@@ -139,18 +132,12 @@ class OpenF1API:
             "session_key": f"{session_key}",
             "driver_number": f"{driver_number}",
         }
-        car_req = self.request("car_data", parameters)
-        car_json = car_req.json()
-        _df = pl.DataFrame(car_json)
-
-        return pl.DataFrame(
-            _df[CarDataColumns.columns()],
-            schema_overrides=CarDataColumns.schema(),
-        )
+        car_res = self.request("car_data", parameters)
+        return _response2df(car_res, CarDataColumns)
 
     def get_lap_data(
         self, session_key: int, driver_number: int, is_pit_out_lap: bool = False
-    ) -> LapDataDF:
+    ) -> LapDF:
         """Laps for a given driver at a given session.
 
         Parameters
@@ -164,7 +151,7 @@ class OpenF1API:
 
         Returns
         -------
-        LapDataDF
+        LapDF
             pl.DataFrame with requested car data. See `LapDataColumns` for columns and
             schema of the dataframe.
         """
@@ -173,14 +160,8 @@ class OpenF1API:
             "driver_number": f"{driver_number}",
             "is_pit_out_lap": f"{is_pit_out_lap}".lower(),
         }
-        lap_req = self.request("laps", parameters)
-        lap_json = lap_req.json()
-        _df = pl.DataFrame(lap_json)
-
-        return pl.DataFrame(
-            _df[LapDataColumns.columns()],
-            schema_overrides=LapDataColumns.schema(),
-        )
+        lap_res = self.request("laps", parameters)
+        return _response2df(lap_res, LapDataColumns)
 
 
 def _fmt_params(parameters: dict[str, str] | dict[str, list[str]]) -> str:
@@ -199,3 +180,16 @@ def _fmt_params(parameters: dict[str, str] | dict[str, list[str]]) -> str:
         )
 
     return params[:-1] if params.endswith("&") else params
+
+
+def _response2df(
+    response: requests.Response, df_columns: type[DataFrameColumnsBase]
+) -> pl.DataFrame:
+    json_response = response.json()
+    _df = pl.DataFrame(json_response)
+
+    df = pl.DataFrame(
+        _df[df_columns.columns()],
+        schema_overrides=df_columns.schema(),
+    )
+    return df_columns.validate(df)

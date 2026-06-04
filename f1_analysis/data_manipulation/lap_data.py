@@ -4,23 +4,23 @@ import polars as pl
 
 from f1_analysis.data_structures.df_columns import (
     CarDataColumns,
-    CarDataDF,
+    CarDF,
     LapDataColumns,
-    LapDataDF,
+    LapDF,
 )
 
 
-def get_fastest_laptime(df: LapDataDF) -> LapDataDF:
+def get_fastest_laptime(df: LapDF) -> LapDF:
     """Get fastest lap time of lap df.
 
     Parameters
     ----------
-    df : LapDataDF
+    df : LapDF
         Dataframe with columns from ``LapDataColumns``
 
     Returns
     -------
-    LapDataDF
+    LapDF
         Column with lowest lap time
     """
     duration_col = LapDataColumns.LAP_DURATION
@@ -34,19 +34,19 @@ def get_fastest_laptime(df: LapDataDF) -> LapDataDF:
     return df.slice(arg_min_duration, 1)
 
 
-def get_car_data_per_lap(lap_df: LapDataDF, car_data_df: CarDataDF) -> CarDataDF:
+def get_car_data_per_lap(lap_df: LapDF, car_data_df: CarDF) -> CarDF:
     """Get car data for a given lap.
 
     Parameters
     ----------
-    lap_df : LapDataDF
+    lap_df : LapDF
         Only one row of lap data (meaning only containing one lap)
-    car_data_df : CarDataDF
+    car_data_df : CarDF
         Car data for a given race.
 
     Returns
     -------
-    CarDataDF
+    CarDF
         Car data for a given lap
     """
     if lap_df.height != 1:

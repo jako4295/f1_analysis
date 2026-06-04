@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+import pandera.polars as pa_polars
 import polars as pl
 
 type Schema = dict[str, pl.DataType]
@@ -9,6 +10,32 @@ type Schema = dict[str, pl.DataType]
 
 class DataFrameColumnsBase(ABC):
     """Base class for string-based dataframe column namespaces."""
+
+    def __init_subclass__(cls, **kwargs: object) -> None:
+        """Validate concrete subclasses at class creation time.
+
+        Parameters
+        ----------
+        **kwargs : object
+            Extra subclass initialization arguments.
+        """
+        super().__init_subclass__(**kwargs)
+
+        if cls.__dict__.get("__abstractmethods__"):
+            return
+
+        cls.schema()
+
+    @classmethod
+    @abstractmethod
+    def _schema(cls) -> Schema:
+        """Return the raw schema for the column namespace.
+
+        Returns
+        -------
+        Schema
+            Raw schema mapping from column name to Polars dtype.
+        """
 
     @classmethod
     def _column_names(cls) -> list[str]:
@@ -24,17 +51,6 @@ class DataFrameColumnsBase(ABC):
             for name in cls.__annotations__
             if not name.startswith("_")
         ]
-
-    @classmethod
-    @abstractmethod
-    def _schema(cls) -> Schema:
-        """Return the raw schema for the column namespace.
-
-        Returns
-        -------
-        Schema
-            Raw schema mapping from column name to Polars dtype.
-        """
 
     @classmethod
     def schema(cls) -> Schema:
@@ -77,17 +93,32 @@ class DataFrameColumnsBase(ABC):
         """
         return cls._column_names()
 
-    def __init_subclass__(cls, **kwargs: object) -> None:
-        """Validate concrete subclasses at class creation time.
+    @classmethod
+    def pandera_schema(cls) -> pa_polars.DataFrameSchema:
+        """Convert registered schema to pandera.
+
+        Returns
+        -------
+        DataFrameSchema
+            Pandera schema
+        """
+        return pa_polars.DataFrameSchema(
+            {col: pa_polars.Column(dtype) for col, dtype in cls.schema().items()}
+        )
+
+    @classmethod
+    def validate(cls, df: pl.DataFrame) -> pl.DataFrame:
+        """Validate a dataframe to the schema of the class.
 
         Parameters
         ----------
-        **kwargs : object
-            Extra subclass initialization arguments.
+        df : pl.DataFrame
+            DataFrame to validate
+
+        Returns
+        -------
+        pl.DataFrame
+            Validated dataframe
         """
-        super().__init_subclass__(**kwargs)
-
-        if cls.__dict__.get("__abstractmethods__"):
-            return
-
-        cls.schema()
+        cls.pandera_schema().validate(df)
+        return df

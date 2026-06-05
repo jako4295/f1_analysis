@@ -1,3 +1,6 @@
+import time
+import warnings
+
 import polars as pl
 import requests
 
@@ -62,11 +65,28 @@ class OpenF1API:
         params = _fmt_params(parameters)
 
         url = f"{_url}/{version}/{_ep}{params}"
-        res = self.session.request(method, url=url)
 
-        res.raise_for_status()
+        try:
+            res = self.session.request(method, url=url)
+            res.raise_for_status()
+            return res
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None and e.response.status_code == 429:
+                # There is a 30 request/minute max and if this is hit we try again.
+                retry_after = int(e.response.headers.get("retry-after", 60))
 
-        return res
+                warnings.warn(
+                    f"Rate limited by OpenF1. Retrying in {retry_after} seconds.",
+                    stacklevel=2,
+                )
+
+                time.sleep(retry_after)
+
+                res = self.session.request(method, url=url)
+                res.raise_for_status()
+                return res
+
+            raise
 
     def get_session_data(
         self, year: int, session_type: str = "Qualifying"
@@ -127,6 +147,14 @@ class OpenF1API:
         CarDF
             pl.DataFrame with requested car data. See `CarDataColumns` for columns and
             schema of the dataframe.
+
+        Note
+        ----
+        The reason there are no time arguments like "date_start" and "date_end" is
+        because the documented time-based filtering does not work for this method.
+
+        The documentation for time-based filtering is
+        [here](https://openf1.org/docs/#time-based-filtering).
         """
         parameters = {
             "session_key": f"{session_key}",
@@ -175,7 +203,7 @@ def _fmt_params(parameters: dict[str, str] | dict[str, list[str]]) -> str:
 
         params += (
             f"{key}={val}&"
-            if not val.startswith("<") or val.startswith(">")
+            if not (val.startswith("<") or val.startswith(">"))
             else f"{key}{val}&"
         )
 
@@ -192,4 +220,4 @@ def _response2df(
         _df[df_columns.columns()],
         schema_overrides=df_columns.schema(),
     )
-    return df_columns.validate(df)
+    return df_columns.validate(df, allow_nullable=True)

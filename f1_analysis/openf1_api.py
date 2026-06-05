@@ -1,9 +1,19 @@
+import time
+import warnings
+
 import polars as pl
 import requests
 
+from f1_analysis.data_structures._df_column_base import DataFrameColumnsBase
 from f1_analysis.data_structures.api_datacls import Driver
-from f1_analysis.data_structures.df_columns import CarDataColumns, CarDataDF
-from f1_analysis.data_structures.enums import OpenF1Versions
+from f1_analysis.data_structures.df_columns import (
+    CarDataColumns,
+    CarDF,
+    LapDataColumns,
+    LapDF,
+    SessionDataColumns,
+    SessionDF,
+)
 
 
 class OpenF1API:
@@ -25,7 +35,7 @@ class OpenF1API:
         endpoint: str,
         parameters: dict[str, str] | dict[str, list[str]],
         method: str = "GET",
-        version: OpenF1Versions = OpenF1Versions.V1,
+        version: str = "v1",
     ) -> requests.Response:
         """Request data from OpenF1.
 
@@ -41,8 +51,8 @@ class OpenF1API:
             `key=[arg1,arg2,...`.
         method : str, optional
             Method for requesting data through the requests library, by default "GET"
-        version : OpenF1Versions, optional
-            Version of the API, by default OpenF1Versions.V1
+        version : str, optional
+            Version of the API, by default "v1"
 
         Returns
         -------
@@ -54,16 +64,33 @@ class OpenF1API:
         _ep = endpoint if not endpoint.endswith("/") else endpoint[:1]
         params = _fmt_params(parameters)
 
-        url = f"{_url}/{version.value}/{_ep}{params}"
-        res = self.session.request(method, url=url)
+        url = f"{_url}/{version}/{_ep}{params}"
 
-        res.raise_for_status()
+        try:
+            res = self.session.request(method, url=url)
+            res.raise_for_status()
+            return res
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None and e.response.status_code == 429:
+                # There is a 30 request/minute max and if this is hit we try again.
+                retry_after = int(e.response.headers.get("retry-after", 60))
 
-        return res
+                warnings.warn(
+                    f"Rate limited by OpenF1. Retrying in {retry_after} seconds.",
+                    stacklevel=2,
+                )
 
-    def get_session_keys(
+                time.sleep(retry_after)
+
+                res = self.session.request(method, url=url)
+                res.raise_for_status()
+                return res
+
+            raise
+
+    def get_session_data(
         self, year: int, session_type: str = "Qualifying"
-    ) -> list[int]:
+    ) -> SessionDF:
         """Attribute for getting all sessions in a year (of a given session type).
 
         Parameters
@@ -75,22 +102,12 @@ class OpenF1API:
 
         Returns
         -------
-        List[int]
-            List of session keys.
+        SessionDF
+            Session data info
         """
         parameters = {"year": f"{year}", "session_type": session_type}
-        sessions_req = self.request("sessions", parameters)
-        sessions_json = sessions_req.json()
-
-        session_keys = []
-        for session in sessions_json:
-            session_key = session.get("session_key", None)
-            if session_key is None:
-                continue
-
-            session_keys.append(session_key)
-
-        return session_keys
+        sessions_res = self.request("sessions", parameters)
+        return _response2df(sessions_res, SessionDataColumns)
 
     def get_session_drivers(self, session_key: int) -> list[Driver]:
         """Get the drivers that are in the provided session.
@@ -111,7 +128,7 @@ class OpenF1API:
 
         return Driver.from_json_response(drivers_json)
 
-    def get_session_car_data(self, session_key: int, driver_number: int) -> CarDataDF:
+    def get_session_car_data(self, session_key: int, driver_number: int) -> CarDF:
         """Car data per session and driver.
 
         It is ambiguous to import for all drivers and the call will fail - therefore
@@ -127,19 +144,52 @@ class OpenF1API:
 
         Returns
         -------
-        CarDataDF
+        CarDF
             pl.DataFrame with requested car data. See `CarDataColumns` for columns and
             schema of the dataframe.
+
+        Note
+        ----
+        The reason there are no time arguments like "date_start" and "date_end" is
+        because the documented time-based filtering does not work for this method.
+
+        The documentation for time-based filtering is
+        [here](https://openf1.org/docs/#time-based-filtering).
         """
         parameters = {
             "session_key": f"{session_key}",
             "driver_number": f"{driver_number}",
         }
-        car_req = self.request("car_data", parameters)
-        car_json = car_req.json()
-        _df = pl.DataFrame(car_json)
+        car_res = self.request("car_data", parameters)
+        return _response2df(car_res, CarDataColumns)
 
-        return pl.DataFrame(_df, schema=CarDataColumns.schema())
+    def get_lap_data(
+        self, session_key: int, driver_number: int, is_pit_out_lap: bool = False
+    ) -> LapDF:
+        """Laps for a given driver at a given session.
+
+        Parameters
+        ----------
+        session_key : int
+            Key for the session.
+        driver_number : int
+            Number of the driver to obtain data from
+        is_pit_out_lap : bool, optional
+            If True the out laps will be included, otherwise excluded. Default False.
+
+        Returns
+        -------
+        LapDF
+            pl.DataFrame with requested car data. See `LapDataColumns` for columns and
+            schema of the dataframe.
+        """
+        parameters = {
+            "session_key": f"{session_key}",
+            "driver_number": f"{driver_number}",
+            "is_pit_out_lap": f"{is_pit_out_lap}".lower(),
+        }
+        lap_res = self.request("laps", parameters)
+        return _response2df(lap_res, LapDataColumns)
 
 
 def _fmt_params(parameters: dict[str, str] | dict[str, list[str]]) -> str:
@@ -153,8 +203,21 @@ def _fmt_params(parameters: dict[str, str] | dict[str, list[str]]) -> str:
 
         params += (
             f"{key}={val}&"
-            if not val.startswith("<") or val.startswith(">")
+            if not (val.startswith("<") or val.startswith(">"))
             else f"{key}{val}&"
         )
 
     return params[:-1] if params.endswith("&") else params
+
+
+def _response2df(
+    response: requests.Response, df_columns: type[DataFrameColumnsBase]
+) -> pl.DataFrame:
+    json_response = response.json()
+    _df = pl.DataFrame(json_response)
+
+    df = pl.DataFrame(
+        _df[df_columns.columns()],
+        schema_overrides=df_columns.schema(),
+    )
+    return df_columns.validate(df, allow_nullable=True)

@@ -23,13 +23,13 @@ def get_fastest_laptime(df: LapDF) -> LapDF:
     LapDF
         Column with lowest lap time
     """
-    duration_col = LapDataColumns.LAP_DURATION
-    if duration_col not in df.columns:
-        raise ValueError("DataFrame must contain column 'lap_duration'")
-    arg_min_duration = df[duration_col].arg_min()
+    df = df.drop_nulls()  # remove laps with not finished sectors etc.
+    df = LapDataColumns.validate(df)
+
+    arg_min_duration = df[LapDataColumns.LAP_DURATION].arg_min()
 
     if arg_min_duration is None:
-        return pl.DataFrame(schema=df.schema)
+        return pl.DataFrame(schema=LapDataColumns.schema())
 
     return df.slice(arg_min_duration, 1)
 

@@ -94,8 +94,13 @@ class DataFrameColumnsBase(ABC):
         return cls._column_names()
 
     @classmethod
-    def pandera_schema(cls) -> pa_polars.DataFrameSchema:
+    def pandera_schema(cls, allow_nullable: bool = False) -> pa_polars.DataFrameSchema:
         """Convert registered schema to pandera.
+
+        Parameters
+        ----------
+        allow_nullable : bool, optional
+            If true the columns may contain null values
 
         Returns
         -------
@@ -103,11 +108,14 @@ class DataFrameColumnsBase(ABC):
             Pandera schema
         """
         return pa_polars.DataFrameSchema(
-            {col: pa_polars.Column(dtype) for col, dtype in cls.schema().items()}
+            {
+                col: pa_polars.Column(dtype, nullable=allow_nullable)
+                for col, dtype in cls.schema().items()
+            }
         )
 
     @classmethod
-    def validate(cls, df: pl.DataFrame) -> pl.DataFrame:
+    def validate(cls, df: pl.DataFrame, allow_nullable: bool = False) -> pl.DataFrame:
         """Validate a dataframe to the schema of the class.
 
         Parameters
@@ -120,5 +128,5 @@ class DataFrameColumnsBase(ABC):
         pl.DataFrame
             Validated dataframe
         """
-        cls.pandera_schema().validate(df)
+        cls.pandera_schema(allow_nullable=allow_nullable).validate(df)
         return df

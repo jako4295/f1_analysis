@@ -16,4 +16,4 @@ uv sync
 
 ## Usage
 
-To run module code (at `f1_analysis/__main__.py`) use `uv run python -m f1_analysis`.
+To run module code (at `f1_analysis/__main__.py`) use `uv run python -m f1_analysis`, and to see the input arguments use the `--help` flag.

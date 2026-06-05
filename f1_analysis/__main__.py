@@ -103,7 +103,8 @@ def _parse_args() -> argparse.Namespace:
         type=str,
         default="Spa-Francorchamps",
         help="Value to match against to find a given race session. Looks in the "
-        "session_attribute for this keyword.",
+        "session_attribute for this keyword. It is a contains-like comparison of names"
+        "and the name does therefore not need to be exact.",
     )
     return parser.parse_args()
 

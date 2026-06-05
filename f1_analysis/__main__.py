@@ -1,3 +1,5 @@
+import argparse
+
 from f1_analysis.data_manipulation.lap_data import (
     get_car_data_per_lap,
     get_fastest_laptime,
@@ -5,6 +7,12 @@ from f1_analysis.data_manipulation.lap_data import (
 from f1_analysis.data_manipulation.session_data import get_session_key
 from f1_analysis.data_structures.df_columns import CarDF, SessionDataColumns
 from f1_analysis.openf1_api import OpenF1API
+from f1_analysis.visualization.lap_visualizer import (
+    plot_brake_heatmap,
+    plot_gear_trace,
+    plot_speed_vs_lap_progress,
+    plot_throttle_heatmap,
+)
 
 
 def main(
@@ -21,7 +29,7 @@ def main(
         Year to analyze
     session_name : str
         The type of session (more specific than session_type). See
-        [api](https://openf1.org/docs/#sessions) for documentation.
+        [api](https://openf1.org/docs/#sessions) for documentation. Default 'Qualifying'
     session_attribute : str
         Attribute from the sessions endpoint to match session_value against. Default is
         SessionDataColumns.CIRCUIT_SHORT_NAME
@@ -53,16 +61,54 @@ def main(
         car_data_per_lap = get_car_data_per_lap(fastest_lap, car_data)
         car_dat_per_driver[driver.number] = car_data_per_lap
 
-    # TODO: Visualize data
+    plot_speed_vs_lap_progress()
+    plot_throttle_heatmap()
+    plot_brake_heatmap()
+    plot_gear_trace()
+
+
+def _parse_args() -> argparse.Namespace:
+    """Parse CLI arguments for f1 arguments.
+
+    Returns
+    -------
+    argparse.Namespace
+        Namespace with f1 relevant args.
+    """
+    parser = argparse.ArgumentParser(
+        description="Arguments for what data to be analyzed in the f1_analysis. "
+        "It will only analyze one meeting within a session."
+    )
+    parser.add_argument(
+        "--year",
+        type=int,
+        default=2023,
+        help="Year to search for a session in.",
+    )
+    parser.add_argument(
+        "--session_name",
+        type=str,
+        default="Qualifying",
+        help="Session name to search within.",
+    )
+    parser.add_argument(
+        "--session_attribute",
+        type=str,
+        default=SessionDataColumns.CIRCUIT_SHORT_NAME,
+        help="Select one attribute of the sessions endpoint in "
+        "https://openf1.org/docs/#sessions to match a session_value against",
+    )
+    parser.add_argument(
+        "--session_value",
+        type=str,
+        default="Spa-Francorchamps",
+        help="Value to match against to find a given race session. Looks in the "
+        "session_attribute for this keyword.",
+    )
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    # TODO: Make argparse or Hydra config
-    # TODO: Match against 'location' in session (for instance 'spa')
-    # TODO: Match against 'session_type': Practice, (sprint) Qualifying, Race
-
-    # TODO: Move to using pydantic basemodel for easier validating data
-
     # TODO: create visualization module to show percentage of track done vs car details
     #       parameter
     #           - Resample times to 0-100%
@@ -71,5 +117,5 @@ if __name__ == "__main__":
     #               - Throttle heatmap
     #               - Brake heatmap
     #               - Gear trace
-    year = 2023
-    main(year)
+    args = _parse_args()
+    main(**vars(args))

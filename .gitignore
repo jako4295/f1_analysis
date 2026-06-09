@@ -29,3 +29,4 @@ dmypy.json
 .pytype_check/
 .pytype_check_cache/
 *.lock
+outputs/*

@@ -1,6 +1,8 @@
 import argparse
 from pathlib import Path
 
+import polars as pl
+
 from f1_analysis.data_manipulation.lap_data import (
     get_car_data_per_lap,
     get_fastest_laptime,
@@ -22,6 +24,7 @@ def main(
     session_attribute: str = SessionDataColumns.CIRCUIT_SHORT_NAME,
     session_value: str = "Spa-Francorchamps",
     output_folder: Path = Path("outputs/"),
+    year_options: bool = False,
 ) -> None:
     """Run main module of ``f1_analysis``.
 
@@ -37,6 +40,9 @@ def main(
         SessionDataColumns.CIRCUIT_SHORT_NAME
     session_value : str
         Value to match a column against. Default "Spa-Francorchamps"
+    year_options : bool
+        Will show options for a given year if True (and not run the rest of the code).
+        Default False.
 
     Returns
     -------
@@ -44,6 +50,19 @@ def main(
     """
     f1_api = OpenF1API()
     session_df = f1_api.get_session_data(year)
+    if year_options:
+        with pl.Config(set_tbl_cols=15, set_tbl_rows=100):
+            print(
+                session_df.drop(
+                    [
+                        SessionDataColumns.CIRCUIT_KEY,
+                        SessionDataColumns.MEETING_KEY,
+                        SessionDataColumns.SESSION_KEY,
+                        SessionDataColumns.COUNTRY_KEY,
+                    ]
+                )
+            )
+        return
 
     # for now choose first key but switch to get_session_key when implemented
     session_key = get_session_key(
@@ -98,20 +117,21 @@ def _parse_args() -> argparse.Namespace:
         "--year",
         type=int,
         default=2023,
-        help="Year to search for a session in.",
+        help="Year to search for a session in. Default is 2023.",
     )
     parser.add_argument(
         "--session_name",
         type=str,
         default="Qualifying",
-        help="Session name to search within.",
+        help="Session name to search within. Default is 'Qualifying'",
     )
     parser.add_argument(
         "--session_attribute",
         type=str,
         default=SessionDataColumns.CIRCUIT_SHORT_NAME,
         help="Select one attribute of the sessions endpoint in "
-        "https://openf1.org/docs/#sessions to match a session_value against",
+        "https://openf1.org/docs/#sessions to match a session_value against. Default is"
+        " 'circuit_short_name'.",
     )
     parser.add_argument(
         "--session_value",
@@ -119,13 +139,21 @@ def _parse_args() -> argparse.Namespace:
         default="Spa-Francorchamps",
         help="Value to match against to find a given race session. Looks in the "
         "session_attribute for this keyword. It is a contains-like comparison of names"
-        "and the name does therefore not need to be exact.",
+        "and the name does therefore not need to be exact. Default is"
+        " 'Spa-Francorchamps'",
     )
     parser.add_argument(
         "--output_folder",
         type=Path,
         default="outputs/",
-        help="Folder to save plots in. Default is outputs.",
+        help="Folder to save plots in. Default is 'outputs/'.",
+    )
+    parser.add_argument(
+        "--year_options",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Shows the options for the specified year without running the rest of the"
+        "code. Default is not to show options.",
     )
     return parser.parse_args()
 
